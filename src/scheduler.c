@@ -1,5 +1,86 @@
+#include "../headers/process.h"
 #include "../headers/scheduler.h"
 
-/*
-- Queues and Round Robin.
- */
+#include <stddef.h>
+#include <stdbool.h>
+
+// --- temp ---
+#include <stdio.h>
+// --- temp ---
+
+void schedulerInit(Scheduler *scheduler, int quantum){
+    queueInit(&scheduler->ready_queue);
+    scheduler->quantum = quantum;
+    scheduler->quantum_ramaining = 0;
+    scheduler->context_switchs = 0;
+    scheduler->current_process = NULL;
+}
+
+void schedulerAddProcess(Scheduler *scheduler, Process *process){
+    bool success = enqueue(&scheduler->ready_queue, process);
+
+    // --- temp ---
+    if(success){ printf("Succeedded\n");}
+    else { printf("Failed\n"); }
+    // ---temp ---
+}
+
+Process *schedulerAttend(Scheduler *scheduler){
+    Process *process = dequeue(&scheduler->ready_queue);
+
+    if(process == NULL){ return NULL; }
+
+    scheduler->quantum_ramaining = scheduler->quantum;
+    return process;
+}
+
+void schedulerUpdateWaitTime(Scheduler *scheduler){
+    Node *temporal = scheduler->ready_queue.front;
+    while(temporal != NULL){
+        Process *process = temporal->process;
+        process->waiting_time++;
+        temporal = temporal->next;
+    }
+}
+
+SchedulerResults schedulerTick(Scheduler *scheduler){
+    if(scheduler->current_process == NULL){ return SCHEDULER_NO_PROCESSES; }
+
+    Process *current = scheduler->current_process;
+    current->remaining_time--;
+    scheduler->quantum_ramaining--;
+
+    schedulerUpdateWaitTime(scheduler);
+
+    if(current->remaining_time == 0){ return SCHEDULER_PROCESS_FINISHED; }
+    if(scheduler->quantum_ramaining == 0){ return SCHEDULER_QUANTUM_EXPIRED; }
+    return SCHEDULER_RUNNING;
+}
+
+void schedulerPreempt(Scheduler *scheduler){ // Take the process out of the cpu.
+    if(scheduler->current_process == NULL){ schedulerAttend(scheduler); } // check this
+    
+    Process *process = scheduler->current_process;                                                                          
+    process->state = READY;
+    
+    enqueue(&scheduler->ready_queue, process);
+    scheduler->current_process = NULL;
+}
+
+Process *schedulerTerminateProcess(Scheduler *scheduler){
+    if(scheduler->current_process == NULL){ return NULL; }
+
+    Process *finished_process = scheduler->current_process;
+    finished_process->state = TERMINATED;
+    scheduler->current_process = NULL;
+
+    return finished_process;
+}
+
+void schedulerDestroy(Scheduler *scheduler){
+    deleteQueue(&scheduler->ready_queue);
+    scheduler->current_process = NULL;
+    scheduler->quantum = 0;
+    scheduler->quantum_ramaining = 0;
+    scheduler->context_switchs = 0;
+}
