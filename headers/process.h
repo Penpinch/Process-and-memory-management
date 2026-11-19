@@ -1,16 +1,26 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
-typedef enum { NEW, READY, RUNNING, BLOCKED, TERMINATED } ProcessState;
+#include "settings.h"
+#include <stdbool.h>
+
+typedef enum { NEW, READY, RUNNING, TERMINATED } ProcessState;
 
 typedef struct {
     int pid;
     int memory_required;
-    int execution_tmie;
+    int execution_time;
     int remaining_time;
     int arrival_time;
     int waiting_time;
+    int finish_time; 
     ProcessState state;
 } Process;
+
+Process generateProcess(const Settings*, int);
+
+bool processFinished(const Process*);
+int processRun(Process*, const Settings*);
+void processSetFinish(Process*, int);
 
 #endif
