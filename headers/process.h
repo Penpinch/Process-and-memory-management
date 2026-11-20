@@ -17,10 +17,12 @@ typedef struct {
     ProcessState state;
 } Process;
 
-Process generateProcess(const Settings*, int);
+Process* generateProcess(const Settings*, int);
+void processDestroy(Process**);
+void resetCurrentPid();
 
 bool processFinished(const Process*);
-int processRun(Process*, const Settings*);
+int processRun(Process*, int);
 void processSetFinish(Process*, int);
 
 #endif
