@@ -8,7 +8,7 @@ typedef struct {
     ProcessQueue ready_queue;
     Process *current_process;
     int quantum, 
-        quantum_ramaining, 
+        quantum_remaining, 
         context_switchs;
 } Scheduler;
 

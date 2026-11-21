@@ -4,14 +4,10 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-// --- temp ---
-#include <stdio.h>
-// --- temp ---
-
 void schedulerInit(Scheduler *scheduler, int quantum){
     queueInit(&scheduler->ready_queue);
     scheduler->quantum = quantum;
-    scheduler->quantum_ramaining = 0;
+    scheduler->quantum_remaining = 0;
     scheduler->context_switchs = 0;
     scheduler->current_process = NULL;
 }
@@ -19,10 +15,7 @@ void schedulerInit(Scheduler *scheduler, int quantum){
 void schedulerAddProcess(Scheduler *scheduler, Process *process){
     bool success = enqueue(&scheduler->ready_queue, process);
 
-    // --- temp ---
-    if(success){ printf("Succeedded\n");}
-    else { printf("Failed\n"); }
-    // ---temp ---
+    if(success){ process->state = READY; }
 }
 
 Process *schedulerAttend(Scheduler *scheduler){
@@ -30,7 +23,7 @@ Process *schedulerAttend(Scheduler *scheduler){
 
     if(process == NULL){ return NULL; }
 
-    scheduler->quantum_ramaining = scheduler->quantum;
+    scheduler->quantum_remaining = scheduler->quantum;
     return process;
 }
 
@@ -48,12 +41,12 @@ SchedulerResults schedulerTick(Scheduler *scheduler){
 
     Process *current = scheduler->current_process;
     current->remaining_time--;
-    scheduler->quantum_ramaining--;
+    scheduler->quantum_remaining--;
 
     schedulerUpdateWaitTime(scheduler);
 
     if(current->remaining_time == 0){ return SCHEDULER_PROCESS_FINISHED; }
-    if(scheduler->quantum_ramaining == 0){ return SCHEDULER_QUANTUM_EXPIRED; }
+    if(scheduler->quantum_remaining == 0){ return SCHEDULER_QUANTUM_EXPIRED; }
     return SCHEDULER_RUNNING;
 }
 
@@ -81,6 +74,6 @@ void schedulerDestroy(Scheduler *scheduler){
     deleteQueue(&scheduler->ready_queue);
     scheduler->current_process = NULL;
     scheduler->quantum = 0;
-    scheduler->quantum_ramaining = 0;
+    scheduler->quantum_remaining = 0;
     scheduler->context_switchs = 0;
 }

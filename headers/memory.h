@@ -31,4 +31,8 @@ void memoryCondense(Memory*);
 
 void memoryDestroy(Memory*);
 
+// --- temp ---
+bool placeInMemory(Memory *memory, Process *process);
+// --- temp ---
+
 #endif
