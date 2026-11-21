@@ -9,7 +9,8 @@ typedef struct {
     Process *current_process;
     int quantum, 
         quantum_remaining, 
-        context_switchs;
+        context_switchs,
+        last_pid;
 } Scheduler;
 
 typedef enum {

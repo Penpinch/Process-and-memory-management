@@ -15,7 +15,7 @@ Process* generateProcess(const Settings *s, int current_time){
     // MEMORY
     process->memory_required = MIN_SPLIT + rand() % (s->max_memory_process - MIN_SPLIT + 1);
     // EXECUTION TIME
-    process->execution_time = 1 + rand() % s->max_quantum_process;
+    process->execution_time = 1 + rand() % MAX_SCHEDULER_QUANTUM;
     // REMAINING TIME
     process->remaining_time = process->execution_time;
     // ARRIVAL TIME

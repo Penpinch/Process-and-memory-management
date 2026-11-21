@@ -6,7 +6,7 @@ Settings defaultSettings(){
 
     settings.system_quantum = DEFAULT_SYSTEM_QUANTUM;
     settings.max_memory_process = MAX_MEMORY_PROCESS;
-    settings.max_quantum_process = MAX_QUANTUM_PROCESS;
+    settings.scheduler_quantum = DEFAULT_SCHEDULER_QUANTUM;
 
     return settings;
 }
@@ -14,16 +14,16 @@ Settings defaultSettings(){
 bool validateSettings(int sys_quantum, int max_size_p, int max_quantum_p){
     if (sys_quantum < 1 || sys_quantum > MAX_SYSTEM_QUANTUM) return false;
     if (max_size_p < MIN_SPLIT || max_size_p > MAX_MEMORY_PROCESS) return false;
-    if (max_quantum_p < 1 || max_quantum_p > MAX_QUANTUM_PROCESS) return false;
+    if (max_quantum_p < 1 || max_quantum_p > MAX_SCHEDULER_QUANTUM) return false;
     
     return true;
 }
-bool changeSettings(Settings* s, int sys_quantum, int max_size_p, int max_quantum_p){
-    if (!validateSettings(sys_quantum, max_size_p, max_quantum_p)) return false;
+bool changeSettings(Settings* s, int sys_quantum, int max_size_p, int sch_quantum){
+    if (!validateSettings(sys_quantum, max_size_p, sch_quantum)) return false;
 
     s->system_quantum = sys_quantum;
     s->max_memory_process = max_size_p;
-    s->max_quantum_process = max_quantum_p;
+    s->scheduler_quantum = sch_quantum;
     return true;
 }
 

@@ -7,12 +7,13 @@
 #define MAX_SYSTEM_QUANTUM 5
 #define MIN_SPLIT 32
 #define MAX_MEMORY_PROCESS 500 // limit for the memory: 4 MB
-#define MAX_QUANTUM_PROCESS 10
+#define DEFAULT_SCHEDULER_QUANTUM 4
+#define MAX_SCHEDULER_QUANTUM 10
 
 typedef struct {
     int system_quantum;
     int max_memory_process;
-    int max_quantum_process;
+    int scheduler_quantum;
 } Settings;
 
 Settings defaultSettings();

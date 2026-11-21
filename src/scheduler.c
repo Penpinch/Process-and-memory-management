@@ -9,6 +9,7 @@ void schedulerInit(Scheduler *scheduler, int quantum){
     scheduler->quantum = quantum;
     scheduler->quantum_remaining = 0;
     scheduler->context_switchs = 0;
+    scheduler->last_pid = -1;
     scheduler->current_process = NULL;
 }
 
@@ -22,7 +23,9 @@ Process *schedulerAttend(Scheduler *scheduler){
     Process *process = dequeue(&scheduler->ready_queue);
 
     if(process == NULL){ return NULL; }
+    if(scheduler->last_pid != -1 && scheduler->last_pid != process->pid){ scheduler->context_switchs++; }
 
+    scheduler->last_pid = process->pid;
     scheduler->quantum_remaining = scheduler->quantum;
     return process;
 }
