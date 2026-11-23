@@ -3,20 +3,22 @@
 #include "../headers/scheduler.h"
 #include "../headers/memory.h"
 #include "../headers/terminal.h"
+#include "../headers/statistics.h"
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(){
+int main() {
     Scheduler scheduler;
     Settings settings = defaultSettings();
     Memory memory;
     ProcessQueue new_processes;
+    Statistics stats;
     int system_tick = 0;
 
     // --- temp for test
-    int genereated_procceses = 0, // stop condition
+    int genereated_procceses = 0, 
         finished_processes = 0;
     // --- temp for test
 
@@ -24,17 +26,21 @@ int main(){
     memoryInit(&memory);
     schedulerInit(&scheduler, settings.scheduler_quantum);
     queueInit(&new_processes);
+    statsInit(&stats, TOTAL_MEMORY);
 
-    while(finished_processes < 15){ // --- Stop condition shound be an usuer interruption ---
+    while (finished_processes < 15) { // --- Stop condition should be a user interruption ---
         printf("\n-------------------------------- TICK %d --------------------------------\n", system_tick);
-        if(genereated_procceses < 15){
+        if (genereated_procceses < 15) {
             Process *process = generateProcess(&settings, settings.system_quantum);
 
-            if(process != NULL){
-                if(enqueue(&new_processes, process)){
+            if (process != NULL) {
+                if (enqueue(&new_processes, process)) {
                     printf("[NEW] P%d generado(mem=%d kb, rem=%d)\n", process->pid, process->memory_required, process->remaining_time);
                     genereated_procceses++;
-                } else { processDestroy(&process); }
+                    statsRecordProcessGenerated(&stats);
+                } else {
+                    processDestroy(&process);
+                }
             }
         }
         printf("------------------------------------------------\n");
@@ -42,11 +48,12 @@ int main(){
 // --------------------------------------
 
         bool allocated_any = false;
-        while(!isEmpty(&new_processes)){
+        while (!isEmpty(&new_processes)) {
             Process *process = queueFront(&new_processes);
 
-            if(!placeInMemory(&memory, process)){
-                printf(" [MEM] Sin espapcio suficiente para P%d(%d KB), se queda en cola NEW\n", process->pid, process->memory_required);
+            if (!placeInMemory(&memory, process)) {
+                printf(" [MEM] Sin espacio suficiente para P%d(%d KB), se queda en cola NEW\n", process->pid, process->memory_required);
+                statsRecordProcessRejected(&stats);
                 break;
             }
 
@@ -57,56 +64,68 @@ int main(){
             printf(" [READY] P%d aceptado en READY(%d kb)\n", process->pid, process->memory_required);
         }
 
-        if(allocated_any){ printMemory(&memory); }
+        if (allocated_any) { printMemory(&memory); }
         printf("------------------------------------------------\n");
 
 // --------------------------------------
 
-        if(scheduler.current_process == NULL){
+        if (scheduler.current_process == NULL) {
             Process *next_process = schedulerAttend(&scheduler);
 
-            if(next_process != NULL){ // There're not process on the ready queue. Possible lock
+            if (next_process != NULL) {
                 next_process->state = RUNNING;
                 scheduler.current_process = next_process;
                 printf(" [CPU] Atendido P%d(rem=%d, q=%d)\n", next_process->pid, next_process->remaining_time, scheduler.quantum_remaining);
-            } else { printf(" [CPU] CPU inactivo(sin procesos en READY)\n"); }
+            } else {
+                printf(" [CPU] CPU inactivo(sin procesos en READY)\n");
+            }
         }
 
 // --------------------------------------
 
         SchedulerResults sch_results = schedulerTick(&scheduler);
         Process *current = scheduler.current_process;
+        long quantum_used_in_tick = (sch_results != SCHEDULER_NO_PROCESSES) ? 1 : 0;
 
-        printf(" [CPU] Ejecutando P%d | rem=%d | q_rem=%d\n", current->pid, current->remaining_time, scheduler.quantum_remaining);
+        if (current != NULL) {
+            printf(" [CPU] Ejecutando P%d | rem=%d | q_rem=%d\n", current->pid, current->remaining_time, scheduler.quantum_remaining);
+        }
 
-        if(sch_results != SCHEDULER_RUNNING && current != NULL){
+        if (sch_results != SCHEDULER_RUNNING && current != NULL) {
             printf(" [TICK] P%d | estado=%s | rem=%d | q_rem=%d\n", current->pid, resultToString(sch_results), current->remaining_time, scheduler.quantum_remaining);
         }
 
 // --------------------------------------
 
-        switch(sch_results){
+        switch (sch_results) {
             case SCHEDULER_RUNNING: { break; }
             case SCHEDULER_NO_PROCESSES: { break; }
             case SCHEDULER_QUANTUM_EXPIRED: {
-                printf("[Q] Quantum agotado para P%d, reencolando al final de READY\n", current->pid); 
+                printf("[Q] Quantum agotado para P%d, reencolando al final de READY\n", current->pid);
                 schedulerPreempt(&scheduler);
                 break;
             }
             case SCHEDULER_PROCESS_FINISHED: {
                 Process *done = schedulerTerminateProcess(&scheduler);
 
-                if(done != NULL){
+                if (done != NULL) {
                     printf(" [EXIT] P%d terminado(wait=%d) --> liberando %d KB\n", done->pid, done->waiting_time, done->memory_required);
                     finished_processes++;
+
+                    statsRecordProcessCompleted(&stats, 0, done->waiting_time);
+
                     memoryFree(&memory, done);
                     memoryCondense(&memory);
                     processDestroy(&done);
                     printMemory(&memory);
                 }
-                break;                        
+                break;
             }
         }
+
+        statsRecordCycle(&stats, &memory, quantum_used_in_tick);
+        statsPrintLive(&stats);
+
         system_tick++;
     }
 
@@ -115,6 +134,8 @@ int main(){
     printf("\n------------------------------------------------\n");
     printf("\nSimulación terminó en %d ticks. \nContext switches: %d\n", system_tick, scheduler.context_switchs);
     printMemory(&memory);
+
+    statsPrintSummary(&stats);
 
     deleteQueue(&new_processes);
     schedulerDestroy(&scheduler);
