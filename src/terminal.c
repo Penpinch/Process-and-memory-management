@@ -16,6 +16,7 @@
   #define SLEEP_MS(ms) Sleep(ms)
   static bool keyPressed(void){ return _kbhit() != 0; }
   static int  readKey(void){ return _getch(); }
+  static void terminalEnableRawMode(void) {}
 #else
     #include <unistd.h>
     #include <termios.h>
