@@ -100,15 +100,14 @@ void statsPrintSummary(const Statistics *stats) {
     if (!stats) return;
 
     printf("\n=== ESTADISTICAS DE SIMULACION ===\n");
-    printf("Procesos atendidos            : %d\n", stats->processes_completed);
-    printf("Tiempo espera promedio        : %.2f\n", stats->avg_waiting_time);
-    printf("Ocupacion promedio memoria    : %.2f%%\n", stats->avg_memory_usage_pct);
+    printf("Procesos atendidos            : %d procesos\n", stats->processes_completed);
+    printf("Tiempo de espera promedio     : %.2f ciclos\n", stats->avg_waiting_time);
+    printf("Ocupacion promedio de memoria : %.2f%%\n", stats->avg_memory_usage_pct);
     printf("--- Indicadores adicionales ---\n");
-    printf("Ciclos ejecutados             : %d\n", stats->total_cycles);
-    printf("Procesos generados            : %d\n", stats->processes_generated);
-    printf("Fallos de asignacion (NEW)    : %d\n", stats->processes_rejected);
-    printf("Cuanto total servido          : %ld\n", stats->total_quantum_served);
-    printf("Cuanto promedio de atencion   : %.2f\n", stats->avg_service_quantum);
+    printf("Ciclos ejecutados             : %d ciclos\n", stats->total_cycles);
+    printf("Procesos generados            : %d procesos\n", stats->processes_generated);
+    printf("Fallos de asignacion          : %d intentos\n", stats->processes_rejected);
+    printf("Tiempo activo de CPU          : %ld ciclos\n", stats->total_quantum_served);
     printf("Frag. externa promedio        : %.2f%%\n", stats->avg_external_fragmentation_pct);
     printf("Pico de memoria usada         : %zu / %zu KB\n",
            stats->peak_used_kb, stats->total_memory_kb);
