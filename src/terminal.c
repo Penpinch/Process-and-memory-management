@@ -1,12 +1,13 @@
-/*
-- Draw memory.
-- Show process queues.
-- User input.
-*/
+#define _DEFAULT_SOURCE
 
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include "../headers/terminal.h"
+
+#define KEY_POLL_MS 20
 
 //Lectura de teclas y pausas.
 #ifdef _WIN32
@@ -16,13 +17,68 @@
   static bool keyPressed(void){ return _kbhit() != 0; }
   static int  readKey(void){ return _getch(); }
 #else
-  #include <unistd.h>
-  #define SLEEP_MS(ms) usleep((ms) * 1000)
-  static bool keyPressed(void){ return false; }
-  static int  readKey(void){ return getchar(); }
-#endif
+    #include <unistd.h>
+    #include <termios.h>
+    #include <fcntl.h>
+    #include <signal.h>
 
-#define KEY_POLL_MS 20
+    #define SLEEP_MS(ms) usleep((useconds_t)(ms) * 1000)
+
+    static struct termios g_orig_termios;
+    static int  g_orig_flags = -1;
+    static bool g_raw_active = false;
+    static int  g_peek = -1;
+
+    static void terminalDisableRawMode(){
+        if(!g_raw_active){ return; }
+        tcsetattr(STDIN_FILENO, TCSANOW, &g_orig_termios);
+
+        if(g_orig_flags != -1){ fcntl(STDIN_FILENO, F_SETFL, g_orig_flags); }
+        g_raw_active = false;
+    }
+
+    static void onSignal(int sig){
+        terminalDisableRawMode();
+        signal(sig, SIG_DFL);
+        raise(sig);
+    }
+
+    static void terminalEnableRawMode(){
+        if(g_raw_active){ return; }
+        if(tcgetattr(STDIN_FILENO, &g_orig_termios) == -1){ return; }
+
+        struct termios raw = g_orig_termios;
+        raw.c_lflag &= (tcflag_t)~(ICANON | ECHO);
+        raw.c_cc[VMIN]  = 0;
+        raw.c_cc[VTIME] = 0;
+        if(tcsetattr(STDIN_FILENO, TCSANOW, &raw) != 0){ return; }
+
+        g_orig_flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+        if(g_orig_flags != -1){ fcntl(STDIN_FILENO, F_SETFL, g_orig_flags | O_NONBLOCK); }
+
+        g_raw_active = true;
+        atexit(terminalDisableRawMode);
+        signal(SIGINT, onSignal);
+        signal(SIGTERM, onSignal);
+    }
+
+    static bool keyPressed(){
+        if(g_peek != -1){ return true; }
+        unsigned char ch;
+        if(read(STDIN_FILENO, &ch, 1) == 1){ g_peek = ch; return true; }
+        return false;
+    }
+
+    static int readKey(){
+        if(g_peek != -1){ int k = g_peek; g_peek = -1; return k; }
+
+        unsigned char ch;
+        for(ssize_t n = read(STDIN_FILENO, &ch, 1); n != 1; n = read(STDIN_FILENO, &ch, 1)){
+            SLEEP_MS(KEY_POLL_MS);
+        }
+        return (int)ch;
+    }
+#endif
 
 const char *resultToString(SchedulerResults sch_results){
     switch(sch_results){
@@ -116,6 +172,8 @@ Teclas:
   p : pausa         q : terminar simulacion
 */
 TerminalAction terminalWaitNextTick(TerminalControl *ctl){
+    terminalEnableRawMode();
+
     if(ctl->step_mode){
         printf("[Enter] siguiente ciclo | s: automatico | q: salir > ");
         fflush(stdout);

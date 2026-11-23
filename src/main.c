@@ -12,7 +12,7 @@
 
 #define GENERATION_CHANCE 40               
 
-int main(void){                            
+int main(){                            
     Settings settings = defaultSettings();
     Memory memory;
     Scheduler scheduler;
