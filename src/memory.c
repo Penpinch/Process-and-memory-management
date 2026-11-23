@@ -1,9 +1,22 @@
 #include "../headers/memory.h"
 #include <stddef.h>
+#include <stdlib.h>
 
-void memoryInit(Memory* memory){
+void memoryInit(Memory* memory, const Settings settings){
+    memory->blocks = malloc(sizeof(int));
+    switch(settings.memory_size){
+        case 1: memory->blocks[BLOCKS_ONE_MB];
+                memory->blocks[0].size = ONE_MB;
+                break;
+        case 4: memory->blocks[BLOCKS_FOUR_MB];
+                memory->blocks[0].size = FOUR_MB;
+                break;
+        case 8: memory->blocks[BLOCKS_EIGHT_MB];
+                memory->blocks[0].size = EIGHT_MB;
+                break;
+    } // switch
+    
     memory->blocks[0].process = NULL;
-    memory->blocks[0].size = TOTAL_MEMORY;
     memory->block_count = 1;
 }
 
@@ -70,10 +83,10 @@ void memoryCondense(Memory* memory){
     } // while
 }
 
-void memoryDestroy(Memory* memory){
+void memoryDestroy(Memory* memory, const Settings settings){
     for (int i=0; i<memory->block_count; i++)
         processDestroy(&memory->blocks[i].process);
-    memoryInit(memory);
+    memoryInit(memory, settings);
 }
 
 bool placeInMemory(Memory *memory, Process *process){

@@ -4,8 +4,8 @@
 #include "../headers/process.h"
 #include <stdbool.h>
 
-#define TOTAL_MEMORY 4096
-#define MAX_BLOCKS 257 // 2 * (TOTAL_MEMORY / MIN_SPLIT) + 1
+typedef enum {ONE_MB = 1024, FOUR_MB = 4096, EIGHT_MB = 8192} TOTAL_MEMORY ;
+typedef enum {BLOCKS_ONE_MB = 65, BLOCKS_FOUR_MB = 257, BLOCKS_EIGHT_MB = 513} MAX_BLOCKS;
 
 typedef struct {
     Process *process; // NULL = hole
@@ -13,11 +13,12 @@ typedef struct {
 } Block;
 
 typedef struct {
-    Block blocks[MAX_BLOCKS];
+    int max_blocks; // 2 * (TOTAL_MEMORY / MIN_SPLIT) + 1
+    Block *blocks;
     int block_count;
 } Memory;
 
-void memoryInit(Memory*);
+void memoryInit(Memory*, const Settings);
 
 int memoryFirstFit(const Memory*, int);
 int memoryBestFit(const Memory*, int);
@@ -29,10 +30,8 @@ bool memoryFree(Memory*, Process*); // doesn't destroy the process
 void removeBlock(Memory*, int);
 void memoryCondense(Memory*);
 
-void memoryDestroy(Memory*);
+void memoryDestroy(Memory*, const Settings);
 
-// --- temp ---
 bool placeInMemory(Memory *memory, Process *process);
-// --- temp ---
 
 #endif

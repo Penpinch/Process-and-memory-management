@@ -24,10 +24,10 @@ typedef enum {
 
 const char *resultToString(SchedulerResults sch_results);
 
-void printMemory(const Memory *m);
+void printMemory(const Memory *m, const Settings s);
 void printProcessQueue(const ProcessQueue *queue, const char *title);
 void printCurrentProcess(const Scheduler *scheduler);
-void printSimulationScreen(int tick, const Memory *m, const ProcessQueue *new_processes, const Scheduler *scheduler, const TerminalControl *ctl);
+void printSimulationScreen(int tick, const Memory *m, const ProcessQueue *new_processes, const Scheduler *scheduler, const TerminalControl *ctl, const Settings s);
 
 void terminalControlInit(TerminalControl *ctl);
 TerminalAction terminalWaitNextTick(TerminalControl *ctl);

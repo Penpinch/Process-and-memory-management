@@ -3,21 +3,22 @@
 
 #include <stdbool.h>
 
-#define DEFAULT_SYSTEM_QUANTUM 2
-#define MAX_SYSTEM_QUANTUM 5
 #define MIN_SPLIT 32
-#define MAX_MEMORY_PROCESS 500 // limit for the memory: 4 MB
+#define DEFAULT_SYSTEM_QUANTUM 2
+#define DEFAULT_MEMORY_PROCESS 500
 #define DEFAULT_SCHEDULER_QUANTUM 4
-#define MAX_SCHEDULER_QUANTUM 10
+#define DEFAULT_MEMORY_SIZE 4
 
 typedef struct {
     int system_quantum;
+    int max_top_process;
     int max_memory_process;
     int scheduler_quantum;
+    int memory_size;
 } Settings;
 
 Settings defaultSettings();
-bool validateSettings(int, int, int);
-bool changeSettings(Settings*, int, int, int);
+bool validateSettings(int, int, int, int);
+bool changeSettings(Settings*, int, int, int, int);
 
 #endif

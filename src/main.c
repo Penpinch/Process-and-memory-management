@@ -11,7 +11,7 @@
 #include "../headers/terminal.h"
 #include "../headers/statistics.h"
 
-#define GENERATION_CHANCE 40
+#define GENERATION_CHANCE 100
 
 int main() {
     Settings settings = defaultSettings();
@@ -31,10 +31,10 @@ int main() {
         printf("Configuracion invalida, se usan los valores por defecto.\n");
     }
 
-    memoryInit(&memory);
+    memoryInit(&memory, settings);
     schedulerInit(&scheduler, settings.scheduler_quantum);
     queueInit(&new_processes);
-    statsInit(&stats, TOTAL_MEMORY);
+    statsInit(&stats, settings.memory_size);
 
     for (;;) {
 
@@ -92,7 +92,7 @@ int main() {
         statsRecordCycle(&stats, &memory, quantum_used_in_tick);
 
         printf("Evento del ciclo: %s\n", resultToString(result));
-        printSimulationScreen(system_tick, &memory, &new_processes, &scheduler, &ctl);
+        printSimulationScreen(system_tick, &memory, &new_processes, &scheduler, &ctl,settings);
         statsPrintLive(&stats);
 
         if (terminalWaitNextTick(&ctl) == TERMINAL_STOP) { break; }
@@ -102,7 +102,7 @@ int main() {
     printf("\n==================================================\n");
     printf("Ciclos ejecutados: %d | Procesos terminados: %d | Cambios de contexto: %d\n",
            system_tick + 1, finished_processes, scheduler.context_switchs);
-    printMemory(&memory);
+    printMemory(&memory,settings);
     statsPrintSummary(&stats);
 
     Process *pending;
@@ -110,7 +110,7 @@ int main() {
         processDestroy(&pending);
     }
 
-    memoryDestroy(&memory);
+    memoryDestroy(&memory, settings);
     schedulerDestroy(&scheduler);
     return 0;
 }

@@ -93,8 +93,8 @@ const char *resultToString(SchedulerResults sch_results){
 
 // Visualizacion
 
-void printMemory(const Memory *m){
-    printf(" Memory(%d blocks, %d total): ", m->block_count, TOTAL_MEMORY);
+void printMemory(const Memory *m, const Settings s){
+    printf(" Memory(%d blocks, %d total): ", m->block_count, s.memory_size);
     for(int i = 0; i < m->block_count; i++){
         if(m->blocks[i].process == NULL){
             printf("[0,%d,0]", m->blocks[i].size);
@@ -127,7 +127,7 @@ void printCurrentProcess(const Scheduler *scheduler){
            scheduler->context_switchs);
 }
 
-void printSimulationScreen(int tick, const Memory *m, const ProcessQueue *new_processes, const Scheduler *scheduler, const TerminalControl *ctl){
+void printSimulationScreen(int tick, const Memory *m, const ProcessQueue *new_processes, const Scheduler *scheduler, const TerminalControl *ctl, const Settings s){
     int used = 0;
     for(int i = 0; i < m->block_count; i++){
         if(m->blocks[i].process != NULL){ used += m->blocks[i].size; }
@@ -138,9 +138,9 @@ void printSimulationScreen(int tick, const Memory *m, const ProcessQueue *new_pr
            ctl->step_mode ? "paso a paso" : "automatico");
 
     printf("--- Memoria ---\n");
-    printMemory(m);
+    printMemory(m, s);
     printf("Ocupada: %d KB (%.1f%%) | Libre: %d KB\n",
-           used, 100.0 * used / TOTAL_MEMORY, TOTAL_MEMORY - used);
+           used, 100.0 * used / s.memory_size, s.memory_size - used);
 
     printf("--- Procesos ---\n");
     printProcessQueue(new_processes, "NEW ");
@@ -218,7 +218,7 @@ TerminalAction terminalWaitNextTick(TerminalControl *ctl){
 
 //Settings
 
-static int askInt(const char *label, int current, int min, int max){
+static int askInt(const char *label, int current, int min, int max ){
     char line[64];
 
     for(;;){
@@ -227,7 +227,7 @@ static int askInt(const char *label, int current, int min, int max){
         if(line[0] == '\n'){ return current; }
 
         int value;
-        if(sscanf(line, "%d", &value) == 1 && value >= min && value <= max){
+        if(sscanf(line, "%d", &value) == 1 && value >= min){
             return value;
         }
         printf("  Valor invalido. \n");
@@ -238,11 +238,10 @@ bool terminalConfigure(Settings *settings){
     printf("\n CONFIGURACION \n");
     printf("(Enter conserva el valor actual)\n");
 
-    int sys_q = askInt("Cuanto del sistema, quantum de creacion",
-                       settings->system_quantum, 1, MAX_SYSTEM_QUANTUM);
-    int max_p = askInt("Tamano maximo de memoria por proceso (KB)",
-                       settings->max_memory_process, MIN_SPLIT, MAX_MEMORY_PROCESS);
-    int sch_q = askInt("Cuanto maximo de procesamiento por proceso (Round Robin)",
-                       settings->scheduler_quantum, 1, MAX_SCHEDULER_QUANTUM);
-    return changeSettings(settings, sys_q, max_p, sch_q);
+    int sys_q = askInt("Quantum del sistema ", settings->system_quantum, 1, settings->system_quantum);
+    int max_p = askInt("Tamano de memoria por proceso (KB)", settings->max_memory_process, MIN_SPLIT, settings->max_memory_process);
+    int sch_q = askInt("Quantum maximo de procesamiento por proceso (Round Robin)", settings->scheduler_quantum, 1, 1000);
+    int tam_p = askInt("Tamaño del proceso: ", FOUR_MB, 1, 8);
+    
+    return changeSettings(settings, sys_q, max_p, sch_q, tam_p);
 }
