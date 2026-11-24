@@ -2,22 +2,20 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-void memoryInit(Memory* memory, const Settings settings){
-    memory->blocks = malloc(sizeof(int));
-    switch(settings.memory_size){
-        case 1: memory->blocks[BLOCKS_ONE_MB];
-                memory->blocks[0].size = ONE_MB;
-                break;
-        case 4: memory->blocks[BLOCKS_FOUR_MB];
-                memory->blocks[0].size = FOUR_MB;
-                break;
-        case 8: memory->blocks[BLOCKS_EIGHT_MB];
-                memory->blocks[0].size = EIGHT_MB;
-                break;
-    } // switch
+bool memoryInit(Memory* memory, const Settings settings){
+    memory->total_kb = settings.memory_size*1024;
+        memory->max_blocks = 2 * (memory->total_kb / MIN_SPLIT) + 1;
+    memory->blocks = malloc((size_t)memory->max_blocks * sizeof(Block));
     
+    if (memory->blocks == NULL){
+        memory->block_count = 0;
+        return false;
+    } // if
+
     memory->blocks[0].process = NULL;
+    memory->blocks[0].size = memory->total_kb;
     memory->block_count = 1;
+    return true;
 }
 
 int memoryFirstFit(const Memory* memory, int process_size){
@@ -40,13 +38,17 @@ void insertGap(Memory* memory, int limit_indx){
         memory->blocks[i] = memory->blocks[i-1]; 
 }
 bool memoryAllocate(Memory* memory, Process* process, int indx){
-    if (indx == -1) return false;
+    if (process == NULL || indx < 0 || indx >= memory->block_count) return false;
+    if (memory->blocks[indx].process != NULL) return false; // not a hole
 
     int h = memory->blocks[indx].size;
     int p = process->memory_required;
+    if (p <= 0 || p > h) return false;
 
     if (h-p > 0){
+        if (memory->block_count >= memory->max_blocks) return false;
         insertGap(memory, indx);
+        memory->blocks[indx+1].process = NULL;
         memory->blocks[indx+1].size = h-p;
         memory->block_count++;
     } // if
@@ -83,12 +85,17 @@ void memoryCondense(Memory* memory){
     } // while
 }
 
-void memoryDestroy(Memory* memory, const Settings settings){
+void memoryDestroy(Memory* memory){
     for (int i=0; i<memory->block_count; i++)
         processDestroy(&memory->blocks[i].process);
-    memoryInit(memory, settings);
+
+    free(memory->blocks);
+    memory->blocks = NULL;
+    memory->block_count = 0;
+    memory->max_blocks = 0;
 }
 
-bool placeInMemory(Memory *memory, Process *process){
-    return memoryAllocate(memory, process, memoryFirstFit(memory, process->memory_required));
+bool placeInMemory(Memory *memory, Process *process, FitAlgorithm algorithm){
+    int indx = (algorithm == BEST_FIT) ? memoryBestFit(memory, process->memory_required) : memoryFirstFit(memory, process->memory_required);
+    return memoryAllocate(memory, process, indx);
 }

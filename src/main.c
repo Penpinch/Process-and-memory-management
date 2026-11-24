@@ -9,18 +9,20 @@
 #include "../headers/scheduler.h"
 #include "../headers/memory.h"
 #include "../headers/terminal.h"
-#include "../headers/statistics.h"
+#include "../headers/stadistics.h"
 
 #define GENERATION_CHANCE 100
 
 int main() {
+    setvbuf(stdout, NULL, _IOFBF, 1 << 16);
+
     Settings settings = defaultSettings();
     Memory memory;
     Scheduler scheduler;
     ProcessQueue new_processes;
     TerminalControl ctl;
     Statistics stats;
-    int system_tick = 0;
+    int system_tick = 1;
     int finished_processes = 0;
 
     srand((unsigned)time(NULL));
@@ -28,13 +30,16 @@ int main() {
 
     terminalControlInit(&ctl);
     if (!terminalConfigure(&settings)) {
-        printf("Configuracion invalida, se usan los valores por defecto.\n");
+        printf("Invalid configuration: default values are being used\n");
     }
 
-    memoryInit(&memory, settings);
-    schedulerInit(&scheduler, settings.scheduler_quantum);
+    if (!memoryInit(&memory, settings)) {
+        printf("There is not enough memory to start the simulation\n");
+        return 1;
+    }
+    schedulerInit(&scheduler, settings.system_quantum);
     queueInit(&new_processes);
-    statsInit(&stats, settings.memory_size);
+    statsInit(&stats, (size_t)memory.total_kb);
 
     for (;;) {
 
@@ -50,7 +55,7 @@ int main() {
         }
 
         while (!isEmpty(&new_processes)) {
-            if (!placeInMemory(&memory, queueFront(&new_processes))) {
+            if (!placeInMemory(&memory, queueFront(&new_processes), settings.algorithm)) {
                 statsRecordProcessRejected(&stats);
                 break;
             }
@@ -76,7 +81,8 @@ int main() {
             case SCHEDULER_PROCESS_FINISHED: {
                 Process *done = schedulerTerminateProcess(&scheduler);
                 if (done != NULL) {
-                    statsRecordProcessCompleted(&stats, 0, done->waiting_time);
+                    processSetFinish(done, system_tick + 1); // also computes waiting_time
+                    statsRecordProcessCompleted(&stats, done->execution_time, done->waiting_time);
                     memoryFree(&memory, done);
                     memoryCondense(&memory);
                     processDestroy(&done);
@@ -91,8 +97,7 @@ int main() {
 
         statsRecordCycle(&stats, &memory, quantum_used_in_tick);
 
-        printf("Evento del ciclo: %s\n", resultToString(result));
-        printSimulationScreen(system_tick, &memory, &new_processes, &scheduler, &ctl,settings);
+        printSimulationScreen(system_tick, resultToString(result), &memory, &new_processes, &scheduler, &ctl);
         statsPrintLive(&stats);
 
         if (terminalWaitNextTick(&ctl) == TERMINAL_STOP) { break; }
@@ -100,9 +105,9 @@ int main() {
     }
 
     printf("\n==================================================\n");
-    printf("Ciclos ejecutados: %d | Procesos terminados: %d | Cambios de contexto: %d\n",
-           system_tick + 1, finished_processes, scheduler.context_switchs);
-    printMemory(&memory,settings);
+    printf("Executed cycles: %d | Completed processes: %d | Context switches: %d\n",
+           system_tick, finished_processes, scheduler.context_switchs);
+    printMemory(&memory);
     statsPrintSummary(&stats);
 
     Process *pending;
@@ -110,7 +115,7 @@ int main() {
         processDestroy(&pending);
     }
 
-    memoryDestroy(&memory, settings);
+    memoryDestroy(&memory);
     schedulerDestroy(&scheduler);
     return 0;
 }

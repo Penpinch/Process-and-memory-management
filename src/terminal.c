@@ -4,19 +4,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "../headers/terminal.h"
 
 #define KEY_POLL_MS 20
 
-//Lectura de teclas y pausas.
+// Key presses and pauses
 #ifdef _WIN32
-  #include <windows.h>
-  #include <conio.h>
-  #define SLEEP_MS(ms) Sleep(ms)
-  static bool keyPressed(void){ return _kbhit() != 0; }
-  static int  readKey(void){ return _getch(); }
-  static void terminalEnableRawMode(void) {}
+    #include <windows.h>
+    #include <conio.h>
+    
+    #define SLEEP_MS(ms) Sleep(ms)
+    
+    static bool keyPressed(void){ return _kbhit() != 0; }
+    static int  readKey(void){ return _getch(); }
+    static void terminalEnableRawMode(void) {}
+
+    #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+    #endif
+    
+    static void terminalEnableAnsi(void){
+        HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD mode = 0;
+        if(h != INVALID_HANDLE_VALUE && GetConsoleMode(h, &mode)){
+            SetConsoleMode(h, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        }
+    }
 #else
     #include <unistd.h>
     #include <termios.h>
@@ -79,6 +94,8 @@
         }
         return (int)ch;
     }
+    
+    static void terminalEnableAnsi(void){}
 #endif
 
 const char *resultToString(SchedulerResults sch_results){
@@ -91,11 +108,11 @@ const char *resultToString(SchedulerResults sch_results){
     }
 }
 
-// Visualizacion
+// Data visualization
 
-void printMemory(const Memory *m, const Settings s){
-    printf(" Memory(%d blocks, %d total): ", m->block_count, s.memory_size);
-    for(int i = 0; i < m->block_count; i++){
+void printMemory(const Memory *m){
+    printf(" Memory(%d blocks, %d KB total): ", m->block_count, m->total_kb);
+    for (int i=0; i<m->block_count; i++){
         if(m->blocks[i].process == NULL){
             printf("[0,%d,0]", m->blocks[i].size);
         } else {
@@ -108,9 +125,12 @@ void printMemory(const Memory *m, const Settings s){
 void printProcessQueue(const ProcessQueue *queue, const char *title){
     printf("%s (%d): ", title, queue->size);
     if(isEmpty(queue)){ printf("vacia"); }
-    for(const Node *n = queue->front; n != NULL; n = n->next){
+
+    int shown = 0;
+    for(const Node *n = queue->front; n != NULL && shown < TERMINAL_QUEUE_PREVIEW; n = n->next, shown++){
         printf("[%d,%d,%d] ", n->process->pid, n->process->memory_required, n->process->remaining_time);
     }
+    if(queue->size > shown){ printf("... +%d more", queue->size - shown); }
     printf("\n");
 }
 
@@ -118,46 +138,59 @@ void printCurrentProcess(const Scheduler *scheduler){
     const Process *p = scheduler->current_process;
 
     if(p == NULL){
-        printf("CPU: inactiva (sin proceso en ejecución)\n");
+        printf("CPU: idle (no process running)\n");
         return;
     }
-    printf("CPU: [%d,%d,%d] | quantum restante: %d de %d | cambios de contexto: %d\n",
+    printf("CPU: [%d,%d,%d] | remaining quantum: %d de %d | context switches: %d\n",
            p->pid, p->memory_required, p->remaining_time,
            scheduler->quantum_remaining, scheduler->quantum,
            scheduler->context_switchs);
 }
 
-void printSimulationScreen(int tick, const Memory *m, const ProcessQueue *new_processes, const Scheduler *scheduler, const TerminalControl *ctl, const Settings s){
+static void frameStart(const TerminalControl *ctl){
+    if (ctl->refresh_mode) { printf("\033[H\033[J"); } 
+    else { printf("\n\n"); }
+}
+
+void printSimulationScreen(int tick, const char *event, const Memory *m, const ProcessQueue *new_processes, const Scheduler *scheduler, const TerminalControl *ctl){
     int used = 0;
     for(int i = 0; i < m->block_count; i++){
         if(m->blocks[i].process != NULL){ used += m->blocks[i].size; }
     }
 
-    printf("\n -----CICLO----- %d \n", tick);
-    printf("Velocidad: %d ms | Modo: %s\n", ctl->delay_ms,
-           ctl->step_mode ? "paso a paso" : "automatico");
+    frameStart(ctl);
+    printf("----- CYCLE %d -----\n", tick);
+    printf("Event: %s\n", event);
+    printf("Speed: %d ms | Mode: %s | Screen: %s\n", ctl->delay_ms,
+           ctl->step_mode ? "step-by-step" : "automatic",
+           ctl->refresh_mode ? "reflesh" : "record");
+    printf("Keys: +/- speed | s step-by-step | r screen | p pause | q exit\n");
 
-    printf("--- Memoria ---\n");
-    printMemory(m, s);
-    printf("Ocupada: %d KB (%.1f%%) | Libre: %d KB\n",
-           used, 100.0 * used / s.memory_size, s.memory_size - used);
+    printf("--- Memory ---\n");
+    printMemory(m);
+    printf("Occupied: %d KB (%.1f%%) | Free: %d KB\n",
+           used, 100.0 * used / m->total_kb, m->total_kb - used);
 
-    printf("--- Procesos ---\n");
+    printf("--- Processes ---\n");
     printProcessQueue(new_processes, "NEW ");
     printProcessQueue(&scheduler->ready_queue, "RR  ");
     printCurrentProcess(scheduler);
     printf("\n");
 }
 
-//Control
+// Control
 
 void terminalControlInit(TerminalControl *ctl){
     ctl->delay_ms = TERMINAL_DELAY_DEFAULT;
     ctl->step_mode = false;
+    ctl->refresh_mode = false;
+    terminalEnableAnsi();
 }
 
 static bool waitResume(void){
-    printf("\n[PAUSA] p: continuar | q: salir\n");
+    printf("\n[PAUSE] p: continue | q: exit\n");
+    fflush(stdout);
+
     for(;;){
         int k = readKey();
         if(k == 'p' || k == 'P'){ return true; }
@@ -166,22 +199,25 @@ static bool waitResume(void){
 }
 
 /*
-Teclas:
-  Enter (modo paso a paso) : siguiente ciclo
-  s : alterna entre paso a paso y automatico
-  + : mas rapido    - : mas lento
-  p : pausa         q : terminar simulacion
+KEYS:
+  Enter (step-by-step mode) : next cycle
+  s : toggles between step-by-step and automatic
+  + : faster    - : slower
+  p : pause         q : end simulation
 */
+
 TerminalAction terminalWaitNextTick(TerminalControl *ctl){
+    fflush(stdout);
     terminalEnableRawMode();
 
     if(ctl->step_mode){
-        printf("[Enter] siguiente ciclo | s: automatico | q: salir > ");
+        printf("[Enter] next cycle | s: automatic | q: exit > ");
         fflush(stdout);
         for(;;){
             int k = readKey();
             if(k == 'q' || k == 'Q'){ return TERMINAL_STOP; }
             if(k == 's' || k == 'S'){ ctl->step_mode = false; break; }
+            if(k == 'r' || k == 'R'){ ctl->refresh_mode = !ctl->refresh_mode; }
             if(k == '\n' || k == '\r'){ return TERMINAL_CONTINUE; }
         }
     }
@@ -197,6 +233,9 @@ TerminalAction terminalWaitNextTick(TerminalControl *ctl){
                     return TERMINAL_CONTINUE;
                 case 'p': case 'P':
                     if(!waitResume()){ return TERMINAL_STOP; }
+                    break;
+                case 'r': case 'R':
+                    ctl->refresh_mode = !ctl->refresh_mode;
                     break;
                 case '+':
                     ctl->delay_ms -= TERMINAL_DELAY_STEP;
@@ -218,30 +257,93 @@ TerminalAction terminalWaitNextTick(TerminalControl *ctl){
 
 //Settings
 
-static int askInt(const char *label, int current, int min, int max ){
+static bool readLine(char *buf, size_t size){
+    if(fgets(buf, (int)size, stdin) == NULL){ return false; }
+    if(strchr(buf, '\n') == NULL){ // line longer than the buffer: discard the rest
+        int c;
+        while((c = getchar()) != '\n' && c != EOF){}
+    }
+    return true;
+}
+
+static bool isBlank(const char *line){ return line[0] == '\n' || line[0] == '\r' || line[0] == '\0'; }
+
+static bool parseInt(const char *text, long *out){
+    char *end;
+    long value = strtol(text, &end, 10);
+    if(end == text){ return false; }
+    while(*end == ' ' || *end == '\t'){ end++; }
+    if(*end != '\n' && *end != '\r' && *end != '\0'){ return false; } // trailing garbage ("12abc")
+    *out = value;
+    return true;
+}
+
+// Integer >= min and <= max. Enter keeps the current value.
+static int askInt(const char *label, int current, int min, int max){
     char line[64];
 
     for(;;){
-        printf("%s [%d-%d] (actual %d): ", label, min, max, current);
-        if(fgets(line, sizeof line, stdin) == NULL){ return current; }
-        if(line[0] == '\n'){ return current; }
+        if(max == INT_MAX){ printf("%s (minimum %d, current %d): ", label, min, current); }
+        else { printf("%s [%d-%d] (current %d): ", label, min, max, current); }
+        fflush(stdout);
 
-        int value;
-        if(sscanf(line, "%d", &value) == 1 && value >= min){
-            return value;
-        }
-        printf("  Valor invalido. \n");
+        if(!readLine(line, sizeof line)){ return current; }
+        if(isBlank(line)){ return current; }
+
+        long value;
+        if(parseInt(line, &value) && value >= min && value <= max){ return (int)value; }
+        printf("  Invalid value: Enter an integer between %d and %d\n", min, max);
+    }
+}
+
+static int askMemorySize(int current){
+    char line[64];
+
+    for(;;){
+        printf("Memory size in MB MB (1, 4 u 8) (actual %d): ", current);
+        fflush(stdout);
+
+        if(!readLine(line, sizeof line)){ return current; }
+        if(isBlank(line)){ return current; }
+
+        long value;
+        if(parseInt(line, &value) && (value == 1 || value == 4 || value == 8)){ return (int)value; }
+        printf("  Invalid value: only 1, 4, or 8 are permitted\n");
+    }
+}
+
+static FitAlgorithm askAlgorithm(FitAlgorithm current){
+    char line[64];
+
+    for(;;){
+        printf("Placement algorithm (1 = First Fit, 2 = Best Fit) (current %d): ", current == FIRST_FIT ? 1 : 2);
+        fflush(stdout);
+
+        if(!readLine(line, sizeof line)){ return current; }
+        if(isBlank(line)){ return current; }
+
+        long value;
+        if(parseInt(line, &value) && value == 1){ return FIRST_FIT; }
+        if(parseInt(line, &value) && value == 2){ return BEST_FIT; }
+        printf("  Invalid value: enter 1 or 2.\n");
     }
 }
 
 bool terminalConfigure(Settings *settings){
-    printf("\n CONFIGURACION \n");
-    printf("(Enter conserva el valor actual)\n");
+    printf("\n CONFIGURATION \n");
+    printf("(Enter keeps the current value)\n");
 
-    int sys_q = askInt("Quantum del sistema ", settings->system_quantum, 1, settings->system_quantum);
-    int max_p = askInt("Tamano de memoria por proceso (KB)", settings->max_memory_process, MIN_SPLIT, settings->max_memory_process);
-    int sch_q = askInt("Quantum maximo de procesamiento por proceso (Round Robin)", settings->scheduler_quantum, 1, 1000);
-    int tam_p = askInt("Tamaño del proceso: ", FOUR_MB, 1, 8);
-    
-    return changeSettings(settings, sys_q, max_p, sch_q, tam_p);
+    int mem = askMemorySize(settings->memory_size);
+
+    int max_kb = mem * 1024; // a process can't be bigger than the memory
+    int current_p = settings->max_memory_process > max_kb ? max_kb : settings->max_memory_process;
+        int max_p = askInt("Maximum memory size per process (KB)", current_p, 1, max_kb);;
+
+    int sys_q = askInt("System quantum (Round Robin)", settings->system_quantum, 1, INT_MAX);
+    int max_q = askInt("Maximum processing quantum per process", settings->max_quantum_process, 1, INT_MAX);
+    FitAlgorithm algorithm = askAlgorithm(settings->algorithm);
+
+    if(!changeSettings(settings, sys_q, max_p, max_q, mem)){ return false; }
+    settings->algorithm = algorithm;
+    return true;
 }

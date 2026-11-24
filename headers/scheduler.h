@@ -26,8 +26,6 @@ void schedulerAddProcess(Scheduler *scheduler, Process *process);
 
 Process *schedulerAttend(Scheduler *scheduler);
 
-void schedulerUpdateWaitTime(Scheduler *scheduler);
-
 SchedulerResults schedulerTick(Scheduler *scheduler);
 
 void schedulerPreempt(Scheduler *scheduler);

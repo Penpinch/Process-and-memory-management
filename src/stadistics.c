@@ -1,4 +1,4 @@
-#include "../headers/statistics.h"
+#include "../headers/stadistics.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -87,7 +87,7 @@ void statsRecordProcessCompleted(Statistics *stats, long quantum_consumed, long 
 void statsPrintLive(const Statistics *stats) {
     if (!stats) return;
 
-    printf("[LIVE | Ciclo %d] Mem: %zu/%zu KB (%.1f%%) | Huecos: %d | Atendidos: %d\n",
+    printf("[LIVE | Cycle %d] Memory: %zu/%zu KB (%.1f%%) | Holes: %d | Attended to: %d\n",
            stats->total_cycles,
            stats->current_used_kb,
            stats->total_memory_kb,
@@ -99,17 +99,17 @@ void statsPrintLive(const Statistics *stats) {
 void statsPrintSummary(const Statistics *stats) {
     if (!stats) return;
 
-    printf("\n=== ESTADISTICAS DE SIMULACION ===\n");
-    printf("Procesos atendidos            : %d procesos\n", stats->processes_completed);
-    printf("Tiempo de espera promedio     : %.2f ciclos\n", stats->avg_waiting_time);
-    printf("Ocupacion promedio de memoria : %.2f%%\n", stats->avg_memory_usage_pct);
-    printf("--- Indicadores adicionales ---\n");
-    printf("Ciclos ejecutados             : %d ciclos\n", stats->total_cycles);
-    printf("Procesos generados            : %d procesos\n", stats->processes_generated);
-    printf("Fallos de asignacion          : %d intentos\n", stats->processes_rejected);
-    printf("Tiempo activo de CPU          : %ld ciclos\n", stats->total_quantum_served);
-    printf("Frag. externa promedio        : %.2f%%\n", stats->avg_external_fragmentation_pct);
-    printf("Pico de memoria usada         : %zu / %zu KB\n",
+    printf("\n==== SIMULATION STATISTICS ====\n");
+    printf("Processes handled               : %d processes\n", stats->processes_completed);
+    printf("Average wait time               : %.2f cycles\n", stats->avg_waiting_time);
+    printf("Average memory usage            : %.2f%%\n", stats->avg_memory_usage_pct);
+    printf("---- Additional indicators ----\n");
+    printf("Executed cycles                 : %d cycles\n", stats->total_cycles);
+    printf("Generated processes             : %d processes\n", stats->processes_generated);
+    printf("Allocation failures             : %d attemps\n", stats->processes_rejected);
+    printf("CPU active time                 : %ld cycles\n", stats->total_quantum_served);
+    printf("Average external fragmentation  : %.2f%%\n", stats->avg_external_fragmentation_pct);
+    printf("Peak memory usage               : %zu / %zu KB\n",
            stats->peak_used_kb, stats->total_memory_kb);
     printf("==================================\n");
 }

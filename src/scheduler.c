@@ -30,15 +30,6 @@ Process *schedulerAttend(Scheduler *scheduler){
     return process;
 }
 
-void schedulerUpdateWaitTime(Scheduler *scheduler){
-    Node *temporal = scheduler->ready_queue.front;
-    while(temporal != NULL){
-        Process *process = temporal->process;
-        process->waiting_time++;
-        temporal = temporal->next;
-    }
-}
-
 SchedulerResults schedulerTick(Scheduler *scheduler){
     if(scheduler->current_process == NULL){ return SCHEDULER_NO_PROCESSES; }
 
@@ -46,15 +37,13 @@ SchedulerResults schedulerTick(Scheduler *scheduler){
     current->remaining_time--;
     scheduler->quantum_remaining--;
 
-    schedulerUpdateWaitTime(scheduler);
-
     if(current->remaining_time == 0){ return SCHEDULER_PROCESS_FINISHED; }
     if(scheduler->quantum_remaining == 0){ return SCHEDULER_QUANTUM_EXPIRED; }
     return SCHEDULER_RUNNING;
 }
 
 void schedulerPreempt(Scheduler *scheduler){ // Take the process out of the cpu.
-    if(scheduler->current_process == NULL){ schedulerAttend(scheduler); } // check this
+     if(scheduler->current_process == NULL){ return; }
     
     Process *process = scheduler->current_process;                                                                          
     process->state = READY;
