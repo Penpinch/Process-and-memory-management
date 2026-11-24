@@ -111,8 +111,7 @@ const char *resultToString(SchedulerResults sch_results){
 // Data visualization
 
 void printMemory(const Memory *m){
-    printf(" Memory(%d blocks, %d KB total): ", m->block_count, m->total_kb);
-    for (int i=0; i<m->block_count; i++){
+    for(int i = 0; i < m->block_count; i++){
         if(m->blocks[i].process == NULL){
             printf("[0,%d,0]", m->blocks[i].size);
         } else {
@@ -123,14 +122,12 @@ void printMemory(const Memory *m){
 }
 
 void printProcessQueue(const ProcessQueue *queue, const char *title){
-    printf("%s (%d): ", title, queue->size);
-    if(isEmpty(queue)){ printf("vacia"); }
+    printf("%s ", title);
+    if(isEmpty(queue)){ printf("empty"); }
 
-    int shown = 0;
-    for(const Node *n = queue->front; n != NULL && shown < TERMINAL_QUEUE_PREVIEW; n = n->next, shown++){
-        printf("[%d,%d,%d] ", n->process->pid, n->process->memory_required, n->process->remaining_time);
+    for(const Node *n = queue->front; n != NULL; n = n->next){
+        printf("[%d,%d,%d]", n->process->pid, n->process->memory_required, n->process->remaining_time);
     }
-    if(queue->size > shown){ printf("... +%d more", queue->size - shown); }
     printf("\n");
 }
 
@@ -138,7 +135,7 @@ void printCurrentProcess(const Scheduler *scheduler){
     const Process *p = scheduler->current_process;
 
     if(p == NULL){
-        printf("CPU: idle (no process running)\n");
+        printf("CPU: no process running\n");
         return;
     }
     printf("CPU: [%d,%d,%d] | remaining quantum: %d de %d | context switches: %d\n",

@@ -11,7 +11,7 @@
 #define TERMINAL_DELAY_DEFAULT 500   
 #define TERMINAL_DELAY_STEP 100   
 #define TERMINAL_DELAY_MAX 2000
-#define TERMINAL_QUEUE_PREVIEW 10 // processes shown per queue
+// #define TERMINAL_QUEUE_PREVIEW 10 // processes shown per queue
 
 typedef struct {
     int delay_ms;     // simulation speed
