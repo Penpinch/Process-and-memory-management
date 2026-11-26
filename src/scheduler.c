@@ -35,6 +35,7 @@ SchedulerResults schedulerTick(Scheduler *scheduler){
 
     Process *current = scheduler->current_process;
     current->remaining_time -= scheduler->quantum;
+    scheduler->quantum_remaining = 0;
 
     if(current->remaining_time <= 0){ 
         current->remaining_time = 0;

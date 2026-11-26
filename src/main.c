@@ -82,8 +82,12 @@ int main(){
         printProc(scheduler.current_process);
         printf("\n");
 
+        int remaining_before = (scheduler.current_process != NULL) ? scheduler.current_process->remaining_time : 0;
         SchedulerResults result = schedulerTick(&scheduler);
-        long quantum_used_in_tick = (result != SCHEDULER_NO_PROCESSES) ? 1 : 0;
+        // long quantum_used_in_tick = (result != SCHEDULER_NO_PROCESSES) ? 1 : 0;
+        long quantum_used_in_tick = 0;
+        if(result != SCHEDULER_NO_PROCESSES){ quantum_used_in_tick = (remaining_before < scheduler.quantum) ? remaining_before : scheduler.quantum; }
+        int tick_advance = (quantum_used_in_tick > 0) ? (int)quantum_used_in_tick : 1;
 
         if(result == SCHEDULER_QUANTUM_EXPIRED){ schedulerPreempt(&scheduler); }
 
@@ -113,7 +117,7 @@ int main(){
 
         if (terminalWaitNextTick(&ctl) == TERMINAL_STOP) { break; }
 
-        system_tick++;
+        system_tick += tick_advance;
     }
 
     printf("\n==================================================\n");

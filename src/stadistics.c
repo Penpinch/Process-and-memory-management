@@ -32,7 +32,11 @@ void statsRecordCycle(Statistics *stats, const Memory *memory, long quantum_used
         }
     }
 
-    stats->total_cycles++;
+    int cycles_elapsed = (quantum_used_in_cycle > 0) ? (int)quantum_used_in_cycle : 1;
+    int prev_cycles = stats->total_cycles;
+    stats->total_cycles += cycles_elapsed;
+
+    // stats->total_cycles++;
     stats->current_used_kb = used_kb;
     stats->current_free_kb = free_kb;
     stats->current_holes = holes;
@@ -44,18 +48,25 @@ void statsRecordCycle(Statistics *stats, const Memory *memory, long quantum_used
     if (stats->total_memory_kb > 0) {
         stats->current_memory_usage_pct =
             ((double)used_kb / (double)stats->total_memory_kb) * 100.0;
+        // stats->avg_memory_usage_pct =
+        //     ((stats->avg_memory_usage_pct * (double)(stats->total_cycles - 1)) +
+        //      stats->current_memory_usage_pct) / (double)stats->total_cycles;
         stats->avg_memory_usage_pct =
-            ((stats->avg_memory_usage_pct * (double)(stats->total_cycles - 1)) +
-             stats->current_memory_usage_pct) / (double)stats->total_cycles;
+            ((stats->avg_memory_usage_pct * (double)(prev_cycles)) +
+             (stats->current_memory_usage_pct * (double)(cycles_elapsed))) / (double)stats->total_cycles;
     }
 
     double ext_frag = 0.0;
     if (free_kb > 0) {
         ext_frag = ((double)(free_kb - largest_hole_kb) / (double)free_kb) * 100.0;
     }
+    // stats->avg_external_fragmentation_pct =
+    //     ((stats->avg_external_fragmentation_pct * (double)(stats->total_cycles - 1)) +
+    //      ext_frag) / (double)stats->total_cycles;
     stats->avg_external_fragmentation_pct =
-        ((stats->avg_external_fragmentation_pct * (double)(stats->total_cycles - 1)) +
-         ext_frag) / (double)stats->total_cycles;
+        ((stats->avg_external_fragmentation_pct * (double)prev_cycles) +
+         (ext_frag * (double)cycles_elapsed)) / (double)stats->total_cycles;
+
 
     if (quantum_used_in_cycle > 0) {
         stats->total_quantum_served += quantum_used_in_cycle;
