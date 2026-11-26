@@ -13,7 +13,7 @@
 
 #define GENERATION_CHANCE 100
 
-void printProc(const Process *p){ printf("[%d, %d, %d]", p->pid, p->memory_required, p->remaining_time); }
+void printProc(const Process *p){ printf("[%d,%d,%d]", p->pid, p->memory_required, p->remaining_time); }
 
 int main(){
     setvbuf(stdout, NULL, _IOFBF, 1 << 16);
@@ -44,24 +44,27 @@ int main(){
     statsInit(&stats, (size_t)memory.total_kb);
 
     for (;;) {
-        if(rand() % 100 < GENERATION_CHANCE){
+        // if(rand() % 100 < GENERATION_CHANCE){ 
+        if(isEmpty(&new_processes)){
             Process *process = generateProcess(&settings, system_tick);
+        
             if(process != NULL){
                 if(enqueue(&new_processes, process)){
                     statsRecordProcessGenerated(&stats);
-                    printf("\n\nProcess entry: ");
+                    printf("\n\nProcess created: ");
                     printProc(process);
                     printf("\n");
                 } else { processDestroy(&process); }
             }
-        }
+        } else { printf("\n"); }
+        // }
 
         bool allocated_any = false;
         while(!isEmpty(&new_processes)){
             Process *front = queueFront(&new_processes);
             if(!placeInMemory(&memory, front, settings.algorithm)){
                 statsRecordProcessRejected(&stats);
-                printf("Not enough space for ");
+                printf("Waiting gap: ");
                 printProc(front);
                 printf("\n");
                 break;
@@ -77,11 +80,14 @@ int main(){
             if(next != NULL){
                 next->state = RUNNING;
                 scheduler.current_process = next;
-                printf("Attending process:\n");
-                printProc(next);
-                printf("\n");
+                // printf("Attending process: ");
+                // printProc(next);
+                // printf("\n");
             } 
         }
+        printf("Attending process: ");
+        printProc(scheduler.current_process);
+        printf("\n");
 
         SchedulerResults result = schedulerTick(&scheduler);
         long quantum_used_in_tick = (result != SCHEDULER_NO_PROCESSES) ? 1 : 0;
@@ -96,13 +102,13 @@ int main(){
             if(done != NULL){
                 processSetFinish(done, system_tick + 1);
                 statsRecordProcessCompleted(&stats, done->execution_time, done->waiting_time);
-                printf("Deloading process");
+                printf("Process finished: ");
                 printProc(done);
                 printf("\n");
                 memoryFree(&memory, done);
                 printMemory(&memory);
 
-                printf("Condencing holes\n");
+                printf("Condensing gaps: \n");
                 memoryCondense(&memory);
                 printMemory(&memory);
                 processDestroy(&done);
