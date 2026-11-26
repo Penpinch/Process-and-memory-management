@@ -334,7 +334,7 @@ bool terminalConfigure(Settings *settings){
 
     int max_kb = mem * 1024; // a process can't be bigger than the memory
     int current_p = settings->max_memory_process > max_kb ? max_kb : settings->max_memory_process;
-        int max_p = askInt("Maximum memory size per process (KB)", current_p, 1, max_kb);;
+    int max_p = askInt("Maximum memory size per process (KB)", current_p, 1, max_kb);
 
     int sys_q = askInt("System quantum (CPU cycles per process)", settings->system_quantum, 1, INT_MAX);
     int max_q = askInt("Maximum processing quantum per process", settings->max_quantum_process, 1, INT_MAX);

@@ -5,7 +5,7 @@
 bool memoryInit(Memory* memory, const Settings settings){
     memory->total_kb = settings.memory_size*1024;
     memory->max_blocks = memory->total_kb;
-    memory->blocks = malloc((size_t)memory->max_blocks * sizeof(Block));
+    memory->blocks = (Block*)malloc((size_t)memory->max_blocks * sizeof(Block));
     
     if (memory->blocks == NULL){
         memory->block_count = 0;

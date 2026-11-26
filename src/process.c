@@ -6,7 +6,7 @@
 static int current_pid = 1;
 
 Process* generateProcess(const Settings *s, int current_time){
-    Process* process = malloc(sizeof(Process));
+    Process* process = (Process*)malloc(sizeof(Process));
     if (process == NULL) return NULL;
 
     // PID

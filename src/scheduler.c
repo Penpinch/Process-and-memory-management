@@ -34,11 +34,17 @@ SchedulerResults schedulerTick(Scheduler *scheduler){
     if(scheduler->current_process == NULL){ return SCHEDULER_NO_PROCESSES; }
 
     Process *current = scheduler->current_process;
-    current->remaining_time--;
-    scheduler->quantum_remaining--;
+    current->remaining_time -= scheduler->quantum;
 
-    if(current->remaining_time == 0){ return SCHEDULER_PROCESS_FINISHED; }
-    if(scheduler->quantum_remaining == 0){ return SCHEDULER_QUANTUM_EXPIRED; }
+    if(current->remaining_time <= 0){ 
+        current->remaining_time = 0;
+        return SCHEDULER_PROCESS_FINISHED; 
+    }
+
+    if(scheduler->quantum_remaining <= 0){
+        scheduler->quantum_remaining = 0;
+        return SCHEDULER_QUANTUM_EXPIRED; 
+    }
     return SCHEDULER_RUNNING;
 }
 

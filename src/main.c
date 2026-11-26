@@ -11,8 +11,6 @@
 #include "../headers/terminal.h"
 #include "../headers/stadistics.h"
 
-#define GENERATION_CHANCE 100
-
 void printProc(const Process *p){ printf("[%d,%d,%d]", p->pid, p->memory_required, p->remaining_time); }
 
 int main(){
@@ -44,7 +42,6 @@ int main(){
     statsInit(&stats, (size_t)memory.total_kb);
 
     for (;;) {
-        // if(rand() % 100 < GENERATION_CHANCE){ 
         if(isEmpty(&new_processes)){
             Process *process = generateProcess(&settings, system_tick);
         
@@ -57,7 +54,6 @@ int main(){
                 } else { processDestroy(&process); }
             }
         } else { printf("\n"); }
-        // }
 
         bool allocated_any = false;
         while(!isEmpty(&new_processes)){
@@ -80,9 +76,6 @@ int main(){
             if(next != NULL){
                 next->state = RUNNING;
                 scheduler.current_process = next;
-                // printf("Attending process: ");
-                // printProc(next);
-                // printf("\n");
             } 
         }
         printf("Attending process: ");
